@@ -1,0 +1,272 @@
+name: Release
+
+on:
+  push:
+    branches: ["main"]
+    tags:
+      - "v*"
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  XTASK_RELEASE_S3_ENDPOINT_URL: ${{ vars.XTASK_RELEASE_S3_ENDPOINT_URL }}
+
+jobs:
+  github-release:
+    name: GitHub Release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Skip GitHub Release for dry-run
+        if: ${{ !(github.ref_type == 'tag' && startsWith(github.ref_name, 'v')) }}
+        run: echo "not a v* tag; skipping GitHub Release creation"
+
+      - name: Checkout tag
+        if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag_ref="refs/tags/$GITHUB_REF_NAME"
+          tag_object="$(git rev-parse "$tag_ref^{tag}" 2>/dev/null || true)"
+          target_commit="$(git rev-parse "$tag_ref^{commit}")"
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          git for-each-ref "$tag_ref" --format='%(contents)' > "$notes_file"
+          if [ ! -s "$notes_file" ]; then
+            git log -1 --format=%B "$target_commit" > "$notes_file"
+          fi
+          {
+            printf '\n## Authentication and provenance\n\n'
+            printf -- '- Tag: `%s`\n' "$GITHUB_REF_NAME"
+            if [ -n "$tag_object" ]; then
+              printf -- '- Annotated tag object: `%s`\n' "$tag_object"
+            else
+              printf -- '- Tag object: lightweight tag\n'
+            fi
+            printf -- '- Target commit: `%s`\n' "$target_commit"
+            printf -- '- Workflow run: %s/%s/actions/runs/%s\n' \
+              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf -- '- Workflow attempt: `%s`\n' "$GITHUB_RUN_ATTEMPT"
+            printf -- '- Published by: GitHub Actions `%s` workflow\n' "$GITHUB_WORKFLOW"
+          } >> "$notes_file"
+
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "github release $GITHUB_REF_NAME already exists"
+            exit 0
+          fi
+
+          release_args=()
+          version="${GITHUB_REF_NAME#v}"
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-.+ ]]; then
+            release_args+=(--prerelease --latest=false)
+          fi
+
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$notes_file" \
+            "${release_args[@]}"
+
+  linux-deb:
+    needs: github-release
+    name: Linux amd64 deb package and APT publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    defaults:
+      run:
+        shell: bash
+        working-directory: .
+    steps:
+      - name: Checkout Kundy
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install nightly --profile minimal
+          rustup default nightly
+
+      - name: Cache cargo downloads
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+          key: kundy-linux-deb-cargo-${{ hashFiles('Cargo.lock', 'xtask/Cargo.lock') }}
+          restore-keys: |
+            kundy-linux-deb-cargo-
+
+      - name: Install Linux deb tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install --assume-yes --no-install-recommends gpg openssl
+          docker info
+
+      - name: Create ephemeral bootstrap TLS key for pull request validation
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          key_file="$GITHUB_WORKSPACE/tls/kundy.dhttp.net.key.pem"
+          install -d -m 700 "$(dirname "$key_file")"
+          umask 077
+          openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-384 -out "$key_file"
+          chmod 600 "$key_file"
+
+      - name: Materialize bootstrap TLS key
+        if: github.event_name != 'pull_request'
+        env:
+          XTASK_RELEASE_KUNDY_BOOTSTRAP_PRIVATE_KEY: ${{ secrets.XTASK_RELEASE_KUNDY_BOOTSTRAP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${XTASK_RELEASE_KUNDY_BOOTSTRAP_PRIVATE_KEY:-}" ]; then
+            echo "missing required release secret: XTASK_RELEASE_KUNDY_BOOTSTRAP_PRIVATE_KEY" >&2
+            exit 1
+          fi
+          key_file="$GITHUB_WORKSPACE/tls/kundy.dhttp.net.key.pem"
+          install -d -m 700 "$(dirname "$key_file")"
+          umask 077
+          printf '%s' "$XTASK_RELEASE_KUNDY_BOOTSTRAP_PRIVATE_KEY" > "$key_file"
+          chmod 600 "$key_file"
+          openssl pkey -in "$key_file" -noout
+
+      - name: Validate release configuration and derive APT fingerprint
+        if: github.event_name != 'pull_request'
+        id: apt_key
+        env:
+          XTASK_RELEASE_S3_ACCESS_KEY_ID: ${{ secrets.XTASK_RELEASE_S3_ACCESS_KEY_ID }}
+          XTASK_RELEASE_S3_SECRET_ACCESS_KEY: ${{ secrets.XTASK_RELEASE_S3_SECRET_ACCESS_KEY }}
+          XTASK_RELEASE_APT_SIGNING_KEY: ${{ secrets.XTASK_RELEASE_APT_SIGNING_KEY }}
+          XTASK_RELEASE_APT_SIGNING_PASSPHRASE: ${{ secrets.XTASK_RELEASE_APT_SIGNING_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          missing=0
+          required=(
+            XTASK_RELEASE_S3_ENDPOINT_URL
+            XTASK_RELEASE_S3_ACCESS_KEY_ID
+            XTASK_RELEASE_S3_SECRET_ACCESS_KEY
+            XTASK_RELEASE_APT_SIGNING_KEY
+            XTASK_RELEASE_APT_SIGNING_PASSPHRASE
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "missing required release configuration: $name" >&2
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit "$missing"
+          fi
+
+          key_file="$RUNNER_TEMP/apt-signing-key.asc"
+          install -m 700 -d "$(dirname "$key_file")"
+          printf '%s' "$XTASK_RELEASE_APT_SIGNING_KEY" > "$key_file"
+          fingerprint="$(gpg --batch --import-options show-only --with-colons --import "$key_file" \
+            | awk -F: '$1 == "fpr" { print toupper($10); exit }')"
+          rm -f "$key_file"
+          if [ -z "$fingerprint" ]; then
+            echo "failed to derive APT signing key fingerprint" >&2
+            exit 1
+          fi
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+
+      - name: Package amd64 deb artifact
+        run: |
+          cargo xtask package --overwrite-manifest \
+            deb \
+            --target x86_64-unknown-linux-gnu
+
+      - name: Publish or dry-run S3 APT repository
+        if: github.event_name != 'pull_request'
+        env:
+          XTASK_RELEASE_S3_ACCESS_KEY_ID: ${{ secrets.XTASK_RELEASE_S3_ACCESS_KEY_ID }}
+          XTASK_RELEASE_S3_SECRET_ACCESS_KEY: ${{ secrets.XTASK_RELEASE_S3_SECRET_ACCESS_KEY }}
+          XTASK_RELEASE_APT_SIGNING_KEY: ${{ secrets.XTASK_RELEASE_APT_SIGNING_KEY }}
+          XTASK_RELEASE_APT_SIGNING_PASSPHRASE: ${{ secrets.XTASK_RELEASE_APT_SIGNING_PASSPHRASE }}
+          XTASK_RELEASE_APT_SIGNING_FINGERPRINT: ${{ steps.apt_key.outputs.fingerprint }}
+        run: |
+          set -euo pipefail
+          mode=dry-run
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" == v* ]]; then
+            mode=publish
+          fi
+          publish_cmd=(cargo xtask publish s3)
+          if [[ "$mode" == "dry-run" ]]; then
+            publish_cmd+=(--dry-run)
+          fi
+          echo "S3 publish mode: $mode"
+          "${publish_cmd[@]}" \
+            --publish-report target/publish-reports/deb.toml \
+            deb
+
+      - name: Upload deb packages to GitHub Release
+        if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          report=target/publish-reports/deb.toml
+          test -f "$report"
+          assets=()
+          while IFS= read -r asset; do
+            assets+=("$asset")
+          done < <(python3 - "$report" <<'PY'
+          import sys
+          import tomllib
+
+          with open(sys.argv[1], "rb") as handle:
+              report = tomllib.load(handle)
+
+          for manifest in report.get("manifests", []):
+              for asset in manifest.get("artifacts", []):
+                  print(asset["local-path"])
+          PY
+          )
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "no deb release assets selected by publish report"
+            exit 0
+          fi
+          for attempt in {1..30}; do
+            if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "github release $GITHUB_REF_NAME was not visible after waiting" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          gh release upload "$GITHUB_REF_NAME" "${assets[@]}" \
+            --clobber \
+            --repo "$GITHUB_REPOSITORY"
+
+      - name: Upload deb manifests
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kundy-deb-release
+          if-no-files-found: ignore
+          path: |
+            target/common/deb/**
+            target/publish-reports/*.toml
+
+      - name: Remove bootstrap TLS key
+        if: always()
+        run: rm -f -- "$GITHUB_WORKSPACE/tls/kundy.dhttp.net.key.pem"

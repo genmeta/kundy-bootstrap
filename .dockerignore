@@ -1,0 +1,7 @@
+.git
+target
+tls
+.venv
+*.deb
+*.buildinfo
+*.changes

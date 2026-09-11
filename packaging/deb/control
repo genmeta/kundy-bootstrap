@@ -1,0 +1,15 @@
+Source: kundy
+Section: net
+Priority: optional
+Maintainer: Genmeta Tech Limited <developer@genmeta.net>
+Build-Depends: debhelper-compat (= 13)
+Homepage: https://www.dhttp.net
+
+Package: kundy
+Architecture: any
+Depends: bash, passwd, systemd, ${shlibs:Depends}, ${misc:Depends}
+Suggests: pishoo, gmutils
+Description: local appliance initialization service
+ Kundy is the local initialization and lifecycle service for a Genmeta
+ appliance. It provides the local DHTTP setup page, activation workflow, and
+ the fixed host integration protocol used by the appliance runtime.

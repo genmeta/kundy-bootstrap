@@ -1,0 +1,1524 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <title>Kundy · 本地激活</title>
+    <style>
+      :root {
+        --accent: #28634f;
+        --accent-strong: #1f4f3f;
+        --background: #ffffff;
+        --border: #dedfd9;
+        --muted: #62635e;
+        --soft: #f3f5f2;
+        --text: #232421;
+        --error: #a84635;
+        --warning: #8a4b20;
+        color: var(--text);
+        background: var(--background);
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+        font-synthesis: none;
+      }
+
+      * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      html, body { margin: 0; overflow-x: hidden; background: var(--background); }
+      body { display: flex; flex-direction: column; min-block-size: 100dvh; }
+      ::selection { color: var(--text); background: #dceae5; }
+      button, input { font: inherit; touch-action: manipulation; }
+      button { cursor: pointer; }
+
+      .skip-link {
+        position: fixed;
+        inset-block-start: 1rem;
+        inset-inline-start: 1rem;
+        z-index: 10;
+        padding: .75rem 1rem;
+        color: #fff;
+        background: var(--text);
+        opacity: 0;
+        transform: translateY(-150%);
+      }
+      .skip-link:focus { opacity: 1; transform: translateY(0); }
+
+      .masthead, .workspace, .footer-inner {
+        max-inline-size: 72rem;
+        inline-size: 100%;
+        margin-inline: auto;
+      }
+      .masthead {
+        display: flex;
+        align-items: center;
+        gap: .875rem;
+        min-block-size: 4rem;
+        padding-inline: 1.5rem;
+        border-block-end: 1px solid var(--border);
+      }
+      .company-logo { display: block; inline-size: 8rem; block-size: auto; }
+      .brand-separator { inline-size: 1px; block-size: 1.25rem; background: var(--border); }
+      .brand-name {
+        font-family: Iowan Old Style, Palatino Linotype, "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+        font-size: 1.25rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .brand-name::after { color: var(--accent); content: "."; }
+
+      main { flex: 1; outline: none; }
+      .workspace {
+        display: grid;
+        gap: 2.5rem;
+        padding: 3rem 1.5rem 4rem;
+      }
+      .workspace-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 2rem;
+        padding-block-end: 1.75rem;
+        border-block-end: 1px solid var(--border);
+      }
+      .workspace-status {
+        display: grid;
+        gap: .375rem;
+        min-inline-size: 14rem;
+        padding-block-end: .25rem;
+        text-align: end;
+      }
+      .workspace-status-label { color: var(--muted); font-size: .75rem; font-weight: 700; }
+      .workspace-status-label::before {
+        display: inline-block;
+        inline-size: .5rem;
+        block-size: .5rem;
+        margin-inline-end: .45rem;
+        border-radius: 50%;
+        background: var(--accent);
+        content: "";
+        vertical-align: .05em;
+      }
+      .workspace-status[data-state="error"] .workspace-status-label::before { background: var(--error); }
+      .workspace-status[data-state="unknown"] .workspace-status-label::before { background: #a28a4a; }
+      .workspace-status-value { color: var(--accent-strong); font-size: .875rem; font-weight: 700; }
+      .kicker {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        margin: 0 0 .875rem;
+        color: var(--accent-strong);
+        font-size: .8125rem;
+        font-weight: 700;
+      }
+      .kicker::before { inline-size: 1.5rem; block-size: 1px; background: var(--accent); content: ""; }
+      h1, h2 {
+        margin: 0;
+        font-family: Iowan Old Style, Palatino Linotype, "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+        font-weight: 500;
+      }
+      h1 { font-size: 2.75rem; line-height: 1.1; }
+      .workspace-copy { max-inline-size: 32rem; margin: .875rem 0 0; color: var(--muted); font-size: .9375rem; line-height: 1.55; }
+      .activation-tool {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(19rem, .85fr);
+        gap: 3.5rem;
+        align-items: start;
+      }
+      .tool-intro { min-inline-size: 0; }
+      .steps {
+        display: grid;
+        gap: 0;
+        margin-block-start: 2rem;
+        border-block-start: 1px solid var(--border);
+      }
+      .step {
+        display: grid;
+        grid-template-columns: 2.5rem 1fr;
+        gap: .875rem;
+        padding-block: 1rem;
+        border-block-end: 1px solid var(--border);
+      }
+      .step-number { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8125rem; }
+      .step-title { color: var(--text); font-size: .875rem; font-weight: 700; }
+      .step-copy { margin: .25rem 0 0; color: var(--muted); font-size: .8125rem; line-height: 1.45; }
+      .step-emphasis { display: block; margin-block-start: .1875rem; color: var(--accent-strong); font-weight: 700; }
+
+      .form-panel {
+        min-inline-size: 0;
+        padding: 1.5rem;
+        border: 1px solid var(--border);
+        border-radius: .375rem;
+        background: var(--soft);
+      }
+      h2 { margin-block-end: 1.5rem; font-size: 1.5rem; line-height: 1.2; }
+      .form-status {
+        min-inline-size: 0;
+        margin: 0;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: .75rem;
+        line-height: 1.25rem;
+        text-align: start;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .form-status[data-kind="success"] { color: var(--accent-strong); }
+      .form-status[data-kind="error"] { color: var(--error); }
+      .field + .field { margin-block-start: 1.25rem; }
+      label { display: block; margin-block-end: .5rem; color: var(--text); font-size: .875rem; font-weight: 700; }
+      input {
+        display: block;
+        inline-size: 100%;
+        min-block-size: 3rem;
+        padding: .75rem .875rem;
+        border: 1px solid #bfc2ba;
+        border-radius: .375rem;
+        color: var(--text);
+        background: #fff;
+      }
+      input::placeholder { color: #85877f; }
+      input:focus-visible, button:focus-visible { outline: 3px solid rgb(40 99 79 / 28%); outline-offset: 2px; border-color: var(--accent); }
+      .activation-code-input {
+        display: flex;
+        align-items: center;
+        gap: .375rem;
+      }
+      .activation-code-group {
+        flex: 1 1 0;
+        inline-size: 0;
+        min-inline-size: 0;
+        padding-inline: .125rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 1rem;
+        letter-spacing: 0;
+        text-align: center;
+        text-transform: uppercase;
+      }
+      .activation-code-separator {
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 1rem;
+        line-height: 1;
+      }
+      .name-input { display: flex; align-items: center; gap: .625rem; }
+      .name-input input { flex: 1 1 auto; inline-size: auto; min-inline-size: 0; }
+      .suffix { flex: 0 0 auto; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .875rem; white-space: nowrap; }
+      .actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 1rem;
+        margin-block-start: 1.5rem;
+      }
+      .actions button {
+        min-block-size: 3rem;
+        padding: .75rem 1.125rem;
+        border: 1px solid var(--accent);
+        border-radius: .375rem;
+        color: #fff;
+        background: var(--accent);
+        font-weight: 700;
+      }
+      #primary-action { min-inline-size: 8rem; }
+      .actions button:hover:not(:disabled) { border-color: var(--accent-strong); background: var(--accent-strong); }
+      .actions button:disabled { cursor: not-allowed; opacity: .55; }
+      .actions button[data-busy] { cursor: progress; }
+
+      .device-overview {
+        display: grid;
+        gap: 1.25rem;
+      }
+      .overview-heading h2 { margin: 0; }
+      .device-information {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(18rem, .65fr);
+        gap: 3rem;
+        align-items: stretch;
+        padding-block: 2rem;
+        border-block: 1px solid var(--border);
+      }
+      .primary-identity {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-inline-size: 0;
+        min-block-size: 8rem;
+        padding-inline-start: 1.5rem;
+        border-inline-start: 2px solid var(--accent);
+      }
+      .identity-label {
+        color: var(--muted);
+        font-size: .75rem;
+        font-weight: 700;
+      }
+      .device-facts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+        align-content: center;
+        margin: 0;
+      }
+      .device-fact {
+        display: grid;
+        align-content: center;
+        gap: .625rem;
+        min-inline-size: 0;
+        padding: .5rem 1.5rem;
+      }
+      .device-fact:first-child { justify-items: end; text-align: end; }
+      .device-fact + .device-fact { border-inline-start: 1px solid var(--border); }
+      .device-fact dt {
+        color: var(--muted);
+        font-size: .75rem;
+        font-weight: 700;
+      }
+      .device-fact dd {
+        min-inline-size: 0;
+        margin: 0;
+        overflow-wrap: anywhere;
+        color: var(--text);
+        font-size: .9375rem;
+      }
+      .device-name {
+        display: block;
+        margin-block-start: .5rem;
+        overflow-wrap: anywhere;
+        color: var(--text);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1.2;
+        text-decoration-color: var(--accent);
+        text-decoration-thickness: 1px;
+        text-underline-offset: .2em;
+      }
+      .device-name:hover { color: var(--accent-strong); }
+      .device-name:focus-visible { border-radius: .125rem; outline: 3px solid rgb(40 99 79 / 28%); outline-offset: 4px; }
+      .device-note {
+        display: block;
+        margin-block-start: .75rem;
+        color: var(--accent-strong);
+        font-size: .8125rem;
+        font-weight: 700;
+      }
+      .active-state {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        color: var(--accent-strong);
+        font-weight: 700;
+      }
+      .active-state::before {
+        inline-size: .5rem;
+        block-size: .5rem;
+        border-radius: 50%;
+        background: var(--accent);
+        content: "";
+      }
+      .service-state {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        color: var(--muted);
+        font-weight: 700;
+      }
+      .service-state::before {
+        flex: 0 0 auto;
+        inline-size: .75rem;
+        block-size: .75rem;
+        border: .125rem solid rgb(40 99 79 / 22%);
+        border-block-start-color: var(--accent);
+        border-radius: 50%;
+        animation: service-status-spin .8s linear infinite;
+        content: "";
+      }
+      .service-state[data-state="available"] { color: var(--accent-strong); }
+      .service-state[data-state="available"]::before {
+        inline-size: .5rem;
+        block-size: .5rem;
+        border: 0;
+        background: var(--accent);
+        animation: none;
+      }
+      @keyframes service-status-spin { to { transform: rotate(1turn); } }
+      .certificate-section {
+        display: grid;
+        gap: 1.25rem;
+        padding-block-start: .75rem;
+      }
+      .certificate-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1.5rem;
+      }
+      .certificate-heading h3 {
+        margin: 0;
+        font-family: Iowan Old Style, Palatino Linotype, "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+        font-size: 1.5rem;
+        font-weight: 500;
+      }
+      .certificate-tools {
+        display: grid;
+        justify-items: end;
+        gap: .5rem;
+      }
+      .certificate-actions { display: flex; flex-wrap: wrap; gap: .625rem; }
+      .certificate-action {
+        min-block-size: 2.75rem;
+        padding: .625rem .875rem;
+        border: 1px solid var(--border);
+        border-radius: .375rem;
+        color: var(--text);
+        background: var(--background);
+        font-size: .8125rem;
+        font-weight: 700;
+      }
+      .certificate-action:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-strong); }
+      .certificate-action:disabled { cursor: not-allowed; opacity: .5; }
+      .certificate-action[data-busy] { cursor: progress; }
+      .certificate-feedback {
+        min-block-size: 1.25rem;
+        margin: 0;
+        color: var(--accent-strong);
+        font-size: .75rem;
+        font-weight: 700;
+      }
+      .certificate-feedback[data-kind="error"] { color: var(--error); }
+      .certificate-details {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin: 0;
+        border-block-start: 1px solid var(--border);
+      }
+      .certificate-fact {
+        display: grid;
+        grid-template-columns: 7rem minmax(0, 1fr);
+        gap: 1rem;
+        min-inline-size: 0;
+        padding: 1rem 1.5rem 1rem 0;
+        border-block-end: 1px solid var(--border);
+      }
+      .certificate-fact:nth-child(even) { padding-inline: 1.5rem 0; border-inline-start: 1px solid var(--border); }
+      .certificate-fact-wide {
+        grid-column: 1 / -1;
+        padding-inline-end: 0;
+      }
+      .certificate-fact-wide:nth-child(even) { padding-inline-start: 0; border-inline-start: 0; }
+      .certificate-fact dt {
+        color: var(--muted);
+        font-size: .8125rem;
+        font-weight: 700;
+      }
+      .certificate-fact dd {
+        min-inline-size: 0;
+        margin: 0;
+        overflow-wrap: anywhere;
+        font-size: .875rem;
+      }
+      .certificate-value {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: 0;
+      }
+      .deactivation-section {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 2rem;
+        padding-block: 1.5rem .25rem;
+        border-block-start: 1px solid var(--border);
+      }
+      .deactivation-section h3 { margin: 0; font-size: 1rem; }
+      .deactivation-copy { max-inline-size: 38rem; margin: .5rem 0 0; color: var(--muted); font-size: .8125rem; line-height: 1.6; }
+      .deactivation-tools { display: grid; justify-items: end; gap: .5rem; min-inline-size: 10rem; }
+      .deactivation-action {
+        min-block-size: 2.75rem;
+        padding: .625rem 1rem;
+        border: 1px solid var(--error);
+        border-radius: .375rem;
+        color: var(--error);
+        background: transparent;
+        font-size: .8125rem;
+        font-weight: 700;
+      }
+      .deactivation-action:hover:not(:disabled) { color: #fff; background: var(--error); }
+      .deactivation-action:disabled { cursor: not-allowed; opacity: .45; }
+      .deactivation-action[data-busy] { cursor: progress; }
+      .deactivation-feedback { min-block-size: 1.25rem; margin: 0; color: var(--accent-strong); font-size: .75rem; font-weight: 700; text-align: end; }
+      .deactivation-feedback[data-kind="error"] { color: var(--error); }
+
+      .footer { padding: .375rem 1.5rem; border-block-start: 1px solid var(--border); }
+      .footer-inner { display: flex; align-items: center; justify-content: space-between; min-block-size: 2.75rem; color: var(--muted); font-size: .75rem; }
+      .footer-actions { display: flex; align-items: center; gap: 1rem; }
+      .language-toggle {
+        min-block-size: 2.75rem;
+        min-inline-size: 3.5rem;
+        padding-inline: .375rem;
+        border: 0;
+        border-radius: .25rem;
+        color: var(--muted);
+        background: transparent;
+        font: inherit;
+        text-decoration: underline;
+        text-underline-offset: .2em;
+      }
+      .language-toggle:hover { color: var(--text); background: transparent; }
+      a { color: inherit; text-underline-offset: .2em; }
+      a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+      @media (max-width: 760px) {
+        .workspace-header { grid-template-columns: 1fr; align-items: start; }
+        .workspace-status { min-inline-size: 0; padding-block-end: 0; text-align: start; }
+        .activation-tool { grid-template-columns: 1fr; gap: 2rem; }
+        .device-information { grid-template-columns: 1fr; gap: 2rem; }
+        .primary-identity { min-block-size: 0; padding-block: .5rem; }
+        .certificate-heading { align-items: flex-start; flex-direction: column; gap: 1rem; }
+        .certificate-tools { justify-items: start; }
+        .deactivation-section { flex-direction: column; gap: 1rem; }
+        .deactivation-tools { justify-items: start; }
+        .deactivation-feedback { text-align: start; }
+        .certificate-details { grid-template-columns: 1fr; }
+        .certificate-fact,
+        .certificate-fact:nth-child(even) {
+          padding-inline: 0;
+          border-inline-start: 0;
+        }
+        .certificate-fact-wide { grid-column: auto; }
+      }
+      @media (max-width: 430px) {
+        .masthead, .workspace, .footer { padding-inline: 1rem; }
+        .workspace { gap: 2rem; padding-block: 2rem 3rem; }
+        h1 { font-size: 2.25rem; }
+        .device-facts { grid-template-columns: 1fr; gap: 1rem; }
+        .form-panel { padding: 1.125rem; }
+        .activation-code-input { gap: .25rem; }
+        .activation-code-group { padding-inline: 0; font-size: .75rem; }
+        .activation-code-separator { font-size: .75rem; }
+        .device-name { font-size: 1.75rem; }
+        .footer-inner { align-items: flex-start; flex-direction: column; gap: .25rem; padding-block: .5rem; }
+        .device-fact,
+        .device-fact:first-child,
+        .device-fact + .device-fact {
+          justify-items: start;
+          padding-inline: 0;
+          border-inline-start: 0;
+          text-align: start;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+        .service-state::before { animation: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="skip">跳转到主要内容</a>
+    <header class="masthead">
+      <svg
+        class="company-logo"
+        viewBox="280 368 875 92"
+        role="img"
+        aria-label="Genmeta Tech"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <g transform="translate(-27668.312)">
+          <g fill="#6366f1">
+            <path d="m 0,0 c -17.236,0 -22.296,5.315 -22.296,20.065 v 18.354 c 0,14.75 5.06,20.065 22.296,20.065 H 15.265 V 47.254 H 0.602 c -7.804,0 -9.948,-2.316 -9.948,-9.435 V 20.581 c 0,-7.716 2.315,-9.431 9.948,-9.431 H 22.64 c 7.291,0 9.862,1.627 9.862,9.946 v 13.55 H 45.538 V 20.065 C 45.538,5.315 40.479,0 23.069,0 Z" transform="matrix(1.3333333,0,0,-1.3333333,27985.409,455.8436)" />
+            <path d="M 0,0 C 0,3.089 -1.373,3.862 -5.231,3.862 H -26.5 c -6.431,0 -8.488,-0.689 -8.488,-7.377 V -6 H 0 Z m -34.988,-14.235 v -2.142 c 0,-5.661 1.713,-6.688 7.717,-6.688 h 15.092 v -9.693 h -15.092 c -14.75,0 -20.496,5.316 -20.496,17.666 v 10.719 c 0,13.55 4.717,18.096 21.096,18.096 h 22.469 c 13.292,0 16.979,-5.319 16.979,-12.692 v -15.266 z" transform="matrix(1.3333333,0,0,-1.3333333,28121.393,412.1668)" />
+            <path d="m 0,0 v 25.9 c 0,7.715 -2.144,9.604 -10.377,9.604 h -13.892 c -8.062,0 -10.377,-1.889 -10.377,-9.604 V 0 h -12.779 v 26.327 c 0,14.834 5.06,20.154 22.298,20.154 h 15.521 c 17.323,0 22.383,-5.32 22.383,-20.154 L 12.777,0 Z" transform="matrix(1.3333333,0,0,-1.3333333,28213.691,455.8436)" />
+            <path d="m 0,0 v 27.958 c 0,5.746 -2.144,7.546 -7.033,7.546 h -8.317 c -7.633,0 -9.519,-1.889 -9.519,-7.546 V 0 h -11.235 v 27.958 c 0,5.657 -1.715,7.546 -9.606,7.546 h -8.146 c -5.059,0 -7.032,-1.8 -7.032,-7.546 V 0 h -12.435 v 29.842 c 0,11.408 4.375,16.639 16.636,16.639 h 11.235 c 9.435,0 13.208,-2.658 14.923,-8.146 1.629,5.488 5.66,8.146 14.835,8.146 h 11.577 c 12.263,0 16.638,-5.231 16.638,-16.639 L 12.521,0 Z" transform="matrix(1.3333333,0,0,-1.3333333,28341.323,455.8436)" />
+            <path d="M 0,0 C 0,3.089 -1.373,3.862 -5.231,3.862 H -26.5 c -6.431,0 -8.488,-0.689 -8.488,-7.377 V -6 H 0 Z m -34.988,-14.235 v -2.142 c 0,-5.661 1.713,-6.688 7.717,-6.688 h 15.092 v -9.693 h -15.092 c -14.75,0 -20.496,5.316 -20.496,17.666 v 10.719 c 0,13.55 4.717,18.096 21.096,18.096 h 22.469 c 13.292,0 16.979,-5.319 16.979,-12.692 v -15.266 z" transform="matrix(1.3333333,0,0,-1.3333333,28434.316,412.1668)" />
+            <path d="M 0,0 V 36.104 H -6.517 V 46.481 H 0 V 59.6 H 13.037 V 46.481 H 27.7 V 36.104 H 13.037 V 0 Z" transform="matrix(1.3333333,0,0,-1.3333333,28467.269,455.8436)" />
+            <path d="m 0,0 h -33.017 c -3,0 -4.802,-1.031 -4.802,-4.719 v -3.173 c 0,-3.258 1.973,-4.373 5.231,-4.373 h 24.013 c 6.002,0 8.575,1.373 8.575,8.319 z m -33.531,-21.012 c -13.379,0 -16.98,4.716 -16.98,12.262 v 4.377 c 0,7.804 3.259,12.261 16.123,12.261 L 0,7.888 v 1.031 c 0,5.916 -2.229,7.458 -7.89,7.458 h -12.691 v 9.092 H -7.89 c 14.836,0 20.667,-5.319 20.667,-17.15 V -3.004 c 0,-13.461 -4.715,-18.008 -21.181,-18.008 z" transform="matrix(1.3333333,0,0,-1.3333333,28572.708,427.82813)" />
+          </g>
+          <g fill="#202124">
+            <path d="m 0,0 v -5.529 h -15.749 v -54.618 h -5.528 V -5.529 H -37.068 V 0 Z" transform="matrix(1.3333333,0,0,-1.3333333,28646.486,375.64693)" />
+            <path d="m 0,0 v -5.529 h -25.173 v -21.696 h 19.896 v -5.529 H -25.173 V -54.619 H 0 v -5.528 H -30.702 V 0 Z" transform="matrix(1.3333333,0,0,-1.3333333,28694.009,375.64693)" />
+            <path d="M 0,0 C 4.943,0 9.493,1.357 13.655,4.063 V -2.303 C 9.354,-4.454 4.802,-5.529 0,-5.529 c -8.462,0 -15.68,3.004 -21.656,9.008 -6.004,5.976 -9.004,13.192 -9.004,21.652 0,8.464 3,15.68 9.004,21.656 5.976,6.004 13.194,9.004 21.656,9.004 4.802,0 9.354,-1.076 13.655,-3.222 v -6.37 C 9.493,48.909 4.943,50.262 0,50.262 c -6.926,0 -12.845,-2.456 -17.76,-7.369 -4.915,-4.917 -7.371,-10.836 -7.371,-17.762 0,-6.922 2.456,-12.841 7.371,-17.758 C -12.845,2.46 -6.926,0 0,0" transform="matrix(1.3333333,0,0,-1.3333333,28737.85,449.25587)" />
+            <path d="m 0,0 v -60.147 h -5.529 v 27.393 H -36.021 V -60.147 H -41.55 V 0 h 5.529 V -27.225 H -5.529 V 0 Z" transform="matrix(1.3333333,0,0,-1.3333333,28817.153,375.64693)" />
+          </g>
+        </g>
+      </svg>
+      <span class="brand-separator" aria-hidden="true"></span>
+      <span class="brand-name" data-i18n="brand">Kundy</span>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <div class="workspace">
+        <header class="workspace-header">
+          <div>
+            <p class="kicker" id="workspace-kicker">一体机设置</p>
+            <h1 id="workspace-title">激活 Kundy</h1>
+            <p class="workspace-copy" id="workspace-copy">为这台一体机绑定一个永久子名字。</p>
+          </div>
+          <div class="workspace-status" id="workspace-status" data-state="checking" aria-live="polite">
+            <span class="workspace-status-label" data-i18n="stateLabel">设备状态</span>
+            <strong class="workspace-status-value" id="device-state" data-i18n="stateChecking">设备状态检查中</strong>
+          </div>
+        </header>
+
+        <section class="activation-tool" id="activation" aria-labelledby="activation-title" hidden>
+          <div class="tool-intro">
+            <h2 id="activation-title" data-i18n="nameTitle">设置本机名字</h2>
+            <div class="steps" aria-label="激活步骤" data-i18n-aria-label="stepsLabel">
+              <div class="step">
+                <span class="step-number">01</span>
+                <div>
+                  <div class="step-title" data-i18n="stepName">选择子名字</div>
+                  <p class="step-copy">
+                    <span data-i18n="stepNameCopy">为这台一体机选择一个容易识别的名字。</span>
+                    <strong class="step-emphasis" data-i18n="stepNameEmphasis">注意：激活后不能更换</strong>
+                  </p>
+                </div>
+              </div>
+              <div class="step">
+                <span class="step-number">02</span>
+                <div>
+                  <div class="step-title" data-i18n="stepCode">输入激活码</div>
+                  <p class="step-copy">
+                    <span data-i18n="stepCodeCopy">使用随一体机提供的激活码确认可申请的域。</span>
+                    <strong class="step-emphasis" data-i18n="stepCodeEmphasis">填写完整后点击检测</strong>
+                  </p>
+                </div>
+              </div>
+              <div class="step">
+                <span class="step-number">03</span>
+                <div>
+                  <div class="step-title" data-i18n="stepFinish">完成激活</div>
+                  <p class="step-copy">
+                    <span data-i18n="stepFinishCopy">确认信息后，完成本机身份配置。</span>
+                    <strong class="step-emphasis" data-i18n="stepFinishEmphasis">正式私钥只在本机生成和保存</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <form class="form-panel" id="activation-form" novalidate>
+            <h2 data-i18n="formTitle">激活信息</h2>
+            <div class="field">
+              <label for="subname" data-i18n="nameLabel">子名字</label>
+              <div class="name-input">
+                <input id="subname" name="subname" type="text" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="例如 tsinghua" data-i18n-placeholder="namePlaceholder" required>
+                <span class="suffix" id="domain-suffix" aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="field">
+              <label id="activation-code-label" data-i18n="codeLabel">激活码</label>
+              <div class="activation-code-input" role="group" aria-labelledby="activation-code-label">
+                <input class="activation-code-group" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX" data-i18n-placeholder="codePlaceholder" data-code-group="1" required>
+                <span class="activation-code-separator" aria-hidden="true">-</span>
+                <input class="activation-code-group" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX" data-i18n-placeholder="codePlaceholder" data-code-group="2" required>
+                <span class="activation-code-separator" aria-hidden="true">-</span>
+                <input class="activation-code-group" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX" data-i18n-placeholder="codePlaceholder" data-code-group="3" required>
+                <span class="activation-code-separator" aria-hidden="true">-</span>
+                <input class="activation-code-group" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX" data-i18n-placeholder="codePlaceholder" data-code-group="4" required>
+                <span class="activation-code-separator" aria-hidden="true">-</span>
+                <input class="activation-code-group" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX" data-i18n-placeholder="codePlaceholder" data-code-group="5" required>
+              </div>
+            </div>
+            <div class="actions">
+              <p class="form-status" id="form-status" role="status" aria-live="polite" aria-atomic="true"></p>
+              <button type="submit" id="primary-action" data-i18n="checkButton" disabled>检测</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="device-overview" id="device-overview" aria-labelledby="device-overview-title" hidden>
+          <div class="overview-heading">
+            <h2 id="device-overview-title" data-i18n="overviewTitle">本机信息</h2>
+          </div>
+          <div class="device-information">
+            <div class="primary-identity">
+              <span class="identity-label" data-i18n="permanentNameLabel">永久名字</span>
+              <a class="device-name" id="active-device-name" target="_blank" rel="noopener noreferrer">—</a>
+              <span class="device-note" data-i18n="permanentNameNote">永久名字激活后不可更换。</span>
+            </div>
+            <dl class="device-facts">
+              <div class="device-fact">
+                <dt data-i18n="activationStateLabel">激活状态</dt>
+                <dd><span class="active-state" data-i18n="stateActive">已激活</span></dd>
+              </div>
+              <div class="device-fact">
+                <dt data-i18n="serviceStateLabel">服务状态</dt>
+                <dd><span class="service-state" id="service-state" data-state="probing" role="status" aria-live="polite" aria-atomic="true">正在探测服务，请稍候…</span></dd>
+              </div>
+            </dl>
+          </div>
+          <div class="certificate-section" aria-labelledby="certificate-title">
+            <div class="certificate-heading">
+              <h3 id="certificate-title" data-i18n="certificateTitle">证书</h3>
+              <div class="certificate-tools">
+                <div class="certificate-actions">
+                  <button class="certificate-action" id="renew-certificate" type="button" data-i18n="renewCertificate" disabled>续签证书</button>
+                  <button class="certificate-action" id="download-certificate" type="button" data-i18n="downloadCertificate" disabled>下载证书</button>
+                </div>
+                <p class="certificate-feedback" id="certificate-feedback" role="status" aria-live="polite"></p>
+              </div>
+            </div>
+            <dl class="certificate-details" id="certificate-details" aria-busy="true">
+              <div class="certificate-fact">
+                <dt data-i18n="certificateIssuerLabel">签发者</dt>
+                <dd class="certificate-value" id="certificate-issuer">—</dd>
+              </div>
+              <div class="certificate-fact">
+                <dt data-i18n="certificateSerialLabel">序列号</dt>
+                <dd class="certificate-value" id="certificate-serial">—</dd>
+              </div>
+              <div class="certificate-fact">
+                <dt data-i18n="certificateValidFromLabel">生效时间</dt>
+                <dd id="certificate-valid-from">—</dd>
+              </div>
+              <div class="certificate-fact">
+                <dt data-i18n="certificateValidUntilLabel">到期时间</dt>
+                <dd id="certificate-valid-until">—</dd>
+              </div>
+              <div class="certificate-fact certificate-fact-wide">
+                <dt data-i18n="certificateFingerprintLabel">SHA-256 指纹</dt>
+                <dd class="certificate-value" id="certificate-fingerprint">—</dd>
+              </div>
+            </dl>
+          </div>
+          <section class="deactivation-section" aria-labelledby="deactivation-title">
+            <div>
+              <h3 id="deactivation-title" data-i18n="deactivationTitle">取消激活</h3>
+              <p class="deactivation-copy" data-i18n="deactivationCopy">移除本机身份与本地运行配置；CertServer 中的绑定记录不会删除。</p>
+            </div>
+            <div class="deactivation-tools">
+              <button class="deactivation-action" id="deactivate-device" type="button" data-i18n="deactivateButton" disabled>取消激活</button>
+              <p class="deactivation-feedback" id="deactivation-feedback" role="status" aria-live="polite"></p>
+            </div>
+          </section>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span id="footer-label" data-i18n="footer">Kundy 一体机设置</span>
+        <div class="footer-actions">
+          <span id="health" data-i18n="healthChecking">服务检查中</span>
+          <button class="language-toggle" id="language-toggle" type="button" aria-label="切换到英文">English</button>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      (() => {
+        const buildConfig = __APPLIANCE_UI_BUILD_CONFIG__;
+        const $ = (selector) => document.querySelector(selector);
+        const form = $("#activation-form");
+        const codeInputs = [...document.querySelectorAll(".activation-code-group")];
+        const subnameInput = $("#subname");
+        const domainSuffix = $("#domain-suffix");
+        const primaryAction = $("#primary-action");
+        const formStatus = $("#form-status");
+        const languageToggle = $("#language-toggle");
+        const health = $("#health");
+        const footerLabel = $("#footer-label");
+        const deviceState = $("#device-state");
+        const workspaceStatus = $("#workspace-status");
+        const workspaceKicker = $("#workspace-kicker");
+        const workspaceTitle = $("#workspace-title");
+        const workspaceCopy = $("#workspace-copy");
+        const activationView = $("#activation");
+        const deviceOverview = $("#device-overview");
+        const activeDeviceName = $("#active-device-name");
+        const serviceState = $("#service-state");
+        const certificateDetails = $("#certificate-details");
+        const certificateIssuer = $("#certificate-issuer");
+        const certificateValidFrom = $("#certificate-valid-from");
+        const certificateValidUntil = $("#certificate-valid-until");
+        const certificateSerial = $("#certificate-serial");
+        const certificateFingerprint = $("#certificate-fingerprint");
+        const certificateFeedback = $("#certificate-feedback");
+        const renewCertificate = $("#renew-certificate");
+        const downloadCertificate = $("#download-certificate");
+        const deactivateDevice = $("#deactivate-device");
+        const deactivationFeedback = $("#deactivation-feedback");
+        let language = "zh";
+        let healthKey = "healthChecking";
+        let stateKey = "stateChecking";
+        let activeDisplayName = "";
+        let assignedDomain = "";
+        let validatedCode = "";
+        let validatedSubname = "";
+        let deviceIsActive = false;
+        let checking = false;
+        let activating = false;
+        let formStatusKey = "";
+        let formStatusKind = "";
+        let formStatusDetail = null;
+        let statusResolved = false;
+        let certificateData = null;
+        let certificateLoading = false;
+        let certificateRenewing = false;
+        let certificateDownloading = false;
+        let certificateFeedbackKey = "";
+        let certificateFeedbackKind = "";
+        let deactivating = false;
+        let deactivationFeedbackKey = "";
+        let deactivationFeedbackKind = "";
+        let publishedServiceState = "checking";
+        let serviceStatusTimer = null;
+        let serviceStatusGeneration = 0;
+
+        const SERVICE_STATUS_INTERVAL_MS = 5_000;
+
+        const translations = {
+          zh: {
+            brand: buildConfig.product_name,
+            skip: "跳转到主要内容",
+            kicker: "一体机设置",
+            title: `激活 ${buildConfig.product_name}`,
+            subtitle: "为这台一体机绑定一个永久子名字。",
+            activeKicker: "本机状态",
+            activeTitle: `${buildConfig.product_name} 已就绪`,
+            activeSubtitle: "本机身份已完成配置。",
+            overviewTitle: "本机信息",
+            permanentNameLabel: "永久名字",
+            permanentNameNote: "永久名字激活后不可更换。",
+            activationStateLabel: "激活状态",
+            serviceStateLabel: "服务状态",
+            serviceProbing: "正在探测服务，请稍候…",
+            serviceAvailable: "运行正常",
+            openServiceLabel: (name) => `打开 ${name}`,
+            certificateTitle: "证书",
+            certificateIssuerLabel: "签发者",
+            certificateValidFromLabel: "生效时间",
+            certificateValidUntilLabel: "到期时间",
+            certificateSerialLabel: "序列号",
+            certificateFingerprintLabel: "SHA-256 指纹",
+            renewCertificate: "续签证书",
+            certificateRenewingButton: "续签中…",
+            downloadCertificate: "下载证书",
+            certificateLoading: "正在读取证书信息…",
+            certificateRenewing: "正在续签证书…",
+            certificateDownloading: "正在准备证书下载…",
+            certificateUnavailable: "证书信息暂不可用。",
+            certificateRenewed: "证书已续签。",
+            certificateRenewalFailed: "证书续签失败，请稍后重试。",
+            certificateDownloadStarted: "证书下载已开始。",
+            certificateDownloadFailed: "无法下载证书，请稍后重试。",
+            deactivationTitle: "取消激活",
+            deactivationCopy: "移除本机身份与本地运行配置；CertServer 中的绑定记录不会删除。",
+            deactivateButton: "取消激活",
+            deactivatingButton: "正在取消激活…",
+            deactivateConfirm: "确定要取消激活本机吗？本机证书、身份和运行配置将被移除。",
+            deactivateCodePrompt: "请输入原激活码以确认取消激活。",
+            deactivationCredentialInvalid: "激活码不匹配，未执行取消激活。",
+            deactivationPromptCanceled: "未提供激活码，已取消操作。",
+            deactivationPending: "宿主机运行态仍在同步，请稍后重试。",
+            deactivationFailed: "取消激活失败，请稍后重试。",
+            nameTitle: "设置本机名字",
+            stepName: "选择子名字",
+            stepNameCopy: "为这台一体机选择一个容易识别的名字。",
+            stepNameEmphasis: "注意：激活后不能更换",
+            stepCode: "输入激活码",
+            stepCodeCopy: "使用随一体机提供的激活码确认可申请的域。",
+            stepCodeEmphasis: "填写完整后点击检测",
+            stepFinish: "完成激活",
+            stepFinishCopy: "确认信息后，完成本机身份配置。",
+            stepFinishEmphasis: "正式私钥只在本机生成和保存",
+            stepsLabel: "激活步骤",
+            formTitle: "激活信息",
+            codeLabel: "激活码",
+            codeGroupLabel: (group) => `激活码第 ${group} 组，共 5 组`,
+            codePlaceholder: "XXXXX",
+            nameLabel: "子名字",
+            namePlaceholder: "例如 tsinghua",
+            checkButton: "检测",
+            checkingButton: "检测中…",
+            activateButton: "激活",
+            activatingButton: "激活中…",
+            footer: `${buildConfig.product_name} 一体机设置`,
+            activeFooter: `${buildConfig.product_name} 一体机`,
+            stateLabel: "设备状态",
+            stateChecking: "设备状态检查中",
+            stateError: "设备状态不可用",
+            stateUnknown: "未知设备状态",
+            stateFactoryReady: "等待首次激活",
+            stateClaiming: "正在认领",
+            stateActive: "已激活",
+            healthChecking: "服务检查中",
+            healthOk: "服务正常",
+            healthError: "服务异常",
+            checking: "正在检测",
+            canActivate: "可以激活",
+            nameUnavailable: "名字不可用",
+            activating: "正在激活",
+            enterCode: "请输入完整的五组激活码。",
+            enterName: "请先输入子名字。",
+            nameFail: "该子名字当前不可用，请更换后重试。",
+            requestFailed: "请求失败，请检查输入后重试。",
+            codeInvalid: "激活码无效，请检查后重试。",
+            codeNotFound: "找不到该激活码，请检查后重试。",
+            subnameInvalid: "子名字格式无效，请更换后重试。",
+            nameLocked: "该激活码已经绑定其他名字。",
+            alreadyClaimed: "该激活码已经完成激活。",
+            certserverUnavailable: "远程激活服务暂时不可用，请稍后重试。",
+            localActivationError: "本机激活配置失败，请稍后重试。",
+            pendingCodeConflict: "本机已有未完成的激活，请使用最初提交的激活码继续。",
+            languageLabel: "切换到英文",
+            languageButton: "English",
+            titleDocument: `${buildConfig.product_name} · 本地激活`,
+            activeTitleDocument: `${buildConfig.product_name} · 本机信息`,
+          },
+          en: {
+            brand: buildConfig.product_name,
+            skip: "Skip to main content",
+            kicker: "Appliance setup",
+            title: `Activate ${buildConfig.product_name}`,
+            subtitle: "Bind a permanent subname to this appliance.",
+            activeKicker: "Appliance status",
+            activeTitle: `${buildConfig.product_name} is ready`,
+            activeSubtitle: "This appliance's identity is configured.",
+            overviewTitle: "Appliance information",
+            permanentNameLabel: "Permanent name",
+            permanentNameNote: "The permanent name cannot be changed after activation.",
+            activationStateLabel: "Activation state",
+            serviceStateLabel: "Service status",
+            serviceProbing: "Checking service, please wait…",
+            serviceAvailable: "Running",
+            openServiceLabel: (name) => `Open ${name}`,
+            certificateTitle: "Certificate",
+            certificateIssuerLabel: "Issuer",
+            certificateValidFromLabel: "Valid from",
+            certificateValidUntilLabel: "Valid until",
+            certificateSerialLabel: "Serial number",
+            certificateFingerprintLabel: "SHA-256 fingerprint",
+            renewCertificate: "Renew certificate",
+            certificateRenewingButton: "Renewing…",
+            downloadCertificate: "Download certificate",
+            certificateLoading: "Loading certificate information…",
+            certificateRenewing: "Renewing certificate…",
+            certificateDownloading: "Preparing certificate download…",
+            certificateUnavailable: "Certificate information is currently unavailable.",
+            certificateRenewed: "Certificate renewed.",
+            certificateRenewalFailed: "The certificate could not be renewed. Try again later.",
+            certificateDownloadStarted: "Certificate download started.",
+            certificateDownloadFailed: "The certificate could not be downloaded. Try again.",
+            deactivationTitle: "Deactivate",
+            deactivationCopy: "Remove the local identity and runtime configuration. The CertServer binding is kept.",
+            deactivateButton: "Deactivate",
+            deactivatingButton: "Deactivating…",
+            deactivateConfirm: "Deactivate this appliance? Its certificate, identity, and runtime configuration will be removed.",
+            deactivateCodePrompt: "Enter the original activation code to confirm deactivation.",
+            deactivationCredentialInvalid: "The activation code does not match this appliance. Nothing was changed.",
+            deactivationPromptCanceled: "No activation code was provided. The operation was canceled.",
+            deactivationPending: "The host runtime is still synchronizing. Try again shortly.",
+            deactivationFailed: "The appliance could not be deactivated. Try again later.",
+            nameTitle: "Name this appliance",
+            stepName: "Choose a subname",
+            stepNameCopy: "Choose a recognizable name for this appliance.",
+            stepNameEmphasis: "Important: it cannot be changed after activation",
+            stepCode: "Enter activation code",
+            stepCodeCopy: "Use the code supplied with the appliance to confirm its domain.",
+            stepCodeEmphasis: "Select Check when both fields are complete",
+            stepFinish: "Finish activation",
+            stepFinishCopy: "Confirm the details to configure this appliance's identity.",
+            stepFinishEmphasis: "The permanent private key is generated and stored only here",
+            stepsLabel: "Activation steps",
+            formTitle: "Activation details",
+            codeLabel: "Activation code",
+            codeGroupLabel: (group) => `Activation code group ${group} of 5`,
+            codePlaceholder: "XXXXX",
+            nameLabel: "Subname",
+            namePlaceholder: "For example, tsinghua",
+            checkButton: "Check",
+            checkingButton: "Checking…",
+            activateButton: "Activate",
+            activatingButton: "Activating…",
+            footer: `${buildConfig.product_name} appliance setup`,
+            activeFooter: `${buildConfig.product_name} appliance`,
+            stateLabel: "Device state",
+            stateChecking: "Checking device state",
+            stateError: "Device state unavailable",
+            stateUnknown: "Unknown device state",
+            stateFactoryReady: "Waiting for activation",
+            stateClaiming: "Claiming device",
+            stateActive: "Activated",
+            healthChecking: "Checking service",
+            healthOk: "Service healthy",
+            healthError: "Service unavailable",
+            checking: "Checking",
+            canActivate: "Ready to activate",
+            nameUnavailable: "Name unavailable",
+            activating: "Activating",
+            enterCode: "Enter all five activation code groups.",
+            enterName: "Enter a subname first.",
+            nameFail: "That subname is unavailable. Choose another and try again.",
+            requestFailed: "Request failed. Check the values and try again.",
+            codeInvalid: "The activation code is invalid. Check it and try again.",
+            codeNotFound: "The activation code was not found. Check it and try again.",
+            subnameInvalid: "The subname is invalid. Choose another and try again.",
+            nameLocked: "This activation code is already bound to another name.",
+            alreadyClaimed: "This activation code has already been activated.",
+            certserverUnavailable: "The remote activation service is unavailable. Try again later.",
+            localActivationError: "The local activation setup failed. Try again later.",
+            pendingCodeConflict: "Activation is already pending. Continue with the original activation code.",
+            languageLabel: "切换到中文",
+            languageButton: "中文",
+            titleDocument: `${buildConfig.product_name} · Local activation`,
+            activeTitleDocument: `${buildConfig.product_name} · Appliance information`,
+          },
+        };
+
+        class ApiError extends Error {
+          constructor(code, message) {
+            super(message);
+            this.code = code;
+          }
+        }
+
+        function t(key, ...args) {
+          const value = translations[language][key];
+          return typeof value === "function" ? value(...args) : value || key;
+        }
+
+        function applyLanguage(nextLanguage) {
+          language = nextLanguage;
+          document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+          document.querySelectorAll("[data-i18n]").forEach((element) => {
+            element.textContent = t(element.dataset.i18n);
+          });
+          document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+            element.placeholder = t(element.dataset.i18nPlaceholder);
+          });
+          document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
+            element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
+          });
+          codeInputs.forEach((input, index) => {
+            input.setAttribute("aria-label", t("codeGroupLabel", index + 1));
+          });
+          languageToggle.textContent = t("languageButton");
+          languageToggle.setAttribute("aria-label", t("languageLabel"));
+          health.textContent = t(healthKey);
+          deviceState.textContent = t(stateKey);
+          renderPageMode();
+          updatePrimaryAction();
+          updateDomainSuffix();
+          renderFormStatus();
+          renderServiceStatus();
+          renderCertificate();
+          renderDeactivation();
+        }
+
+        function renderFormStatus() {
+          const detail = formStatusDetail?.key
+            ? t(formStatusDetail.key)
+            : formStatusDetail?.text || "";
+          const text = [formStatusKey ? t(formStatusKey) : "", detail]
+            .filter(Boolean)
+            .join(" · ");
+          formStatus.textContent = text;
+          formStatus.title = text;
+          formStatus.dataset.kind = formStatusKind;
+        }
+
+        function setFormStatus(key, kind = "", detail = null) {
+          formStatusKey = key;
+          formStatusKind = kind;
+          formStatusDetail = detail;
+          renderFormStatus();
+        }
+
+        function updateDomainSuffix() {
+          const domain = String(assignedDomain || buildConfig.activation_domain || "")
+            .trim()
+            .replace(/^\.+/, "")
+            .replace(/[.~]+$/, "");
+          domainSuffix.textContent = domain ? `.${domain}~` : "";
+        }
+
+        function renderPageMode() {
+          activationView.hidden = !statusResolved || deviceIsActive;
+          deviceOverview.hidden = !statusResolved || !deviceIsActive;
+          workspaceStatus.hidden = deviceIsActive;
+          workspaceKicker.textContent = t(deviceIsActive ? "activeKicker" : "kicker");
+          workspaceTitle.textContent = t(deviceIsActive ? "activeTitle" : "title");
+          workspaceCopy.textContent = t(deviceIsActive ? "activeSubtitle" : "subtitle");
+          footerLabel.textContent = t(deviceIsActive ? "activeFooter" : "footer");
+          activeDeviceName.textContent = activeDisplayName || "—";
+          const url = activeServiceUrl();
+          if (url) {
+            activeDeviceName.href = url;
+            activeDeviceName.setAttribute("aria-label", t("openServiceLabel", activeDisplayName));
+          } else {
+            activeDeviceName.removeAttribute("href");
+            activeDeviceName.removeAttribute("aria-label");
+          }
+          document.title = t(deviceIsActive ? "activeTitleDocument" : "titleDocument");
+        }
+
+        function activeServiceUrl() {
+          return activeDisplayName
+            ? `https://${activeDisplayName}${buildConfig.service_path}`
+            : "";
+        }
+
+        function renderServiceStatus() {
+          const displayState = publishedServiceState === "available" ? "available" : "probing";
+          const text = t(displayState === "available" ? "serviceAvailable" : "serviceProbing");
+          if (serviceState.textContent !== text) serviceState.textContent = text;
+          serviceState.dataset.state = displayState;
+        }
+
+        function stopServiceStatusChecks() {
+          if (serviceStatusTimer !== null) clearTimeout(serviceStatusTimer);
+          serviceStatusTimer = null;
+          serviceStatusGeneration += 1;
+        }
+
+        function startServiceStatusChecks() {
+          stopServiceStatusChecks();
+          publishedServiceState = "checking";
+          renderServiceStatus();
+          void checkServiceStatus(serviceStatusGeneration);
+        }
+
+        async function checkServiceStatus(generation) {
+          const startedAt = performance.now();
+          try {
+            const response = await fetch("/api/service/status", {
+              cache: "no-store",
+              headers: { Accept: "application/json" },
+            });
+            if (!response.ok) throw new Error("service status request failed");
+            const payload = await response.json();
+            if (generation !== serviceStatusGeneration) return;
+            publishedServiceState = payload.state === "available" ? "available" : "unavailable";
+          } catch (_) {
+            if (generation !== serviceStatusGeneration) return;
+            publishedServiceState = "unavailable";
+          }
+          renderServiceStatus();
+          if (deviceIsActive && generation === serviceStatusGeneration) {
+            const elapsedMs = performance.now() - startedAt;
+            const nextDelayMs = Math.max(0, SERVICE_STATUS_INTERVAL_MS - elapsedMs);
+            serviceStatusTimer = setTimeout(
+              () => void checkServiceStatus(generation),
+              nextDelayMs,
+            );
+          }
+        }
+
+        function formatCertificateDate(timestamp) {
+          if (!Number.isFinite(timestamp)) return "—";
+          return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZoneName: "short",
+          }).format(new Date(timestamp * 1000));
+        }
+
+        function renderCertificate() {
+          certificateIssuer.textContent = certificateData?.issuer || "—";
+          certificateValidFrom.textContent = formatCertificateDate(certificateData?.valid_from);
+          certificateValidUntil.textContent = formatCertificateDate(certificateData?.valid_until);
+          certificateSerial.textContent = certificateData?.serial_number || "—";
+          certificateFingerprint.textContent = certificateData?.fingerprint_sha256 || "—";
+          certificateDetails.setAttribute("aria-busy", String(certificateLoading || certificateRenewing));
+          renewCertificate.textContent = t(certificateRenewing ? "certificateRenewingButton" : "renewCertificate");
+          renewCertificate.disabled = !certificateData || certificateLoading || certificateRenewing || certificateDownloading;
+          downloadCertificate.disabled = !certificateData || certificateLoading || certificateRenewing || certificateDownloading;
+          renewCertificate.toggleAttribute("data-busy", certificateRenewing);
+          renewCertificate.setAttribute("aria-busy", String(certificateRenewing));
+          downloadCertificate.toggleAttribute("data-busy", certificateDownloading);
+          let feedbackKey = certificateFeedbackKey;
+          if (certificateLoading) {
+            feedbackKey = "certificateLoading";
+          } else if (certificateRenewing) {
+            feedbackKey = "certificateRenewing";
+          } else if (certificateDownloading) {
+            feedbackKey = "certificateDownloading";
+          }
+          certificateFeedback.textContent = feedbackKey ? t(feedbackKey) : "";
+          certificateFeedback.dataset.kind = certificateFeedbackKind;
+          renderDeactivation();
+        }
+
+        function setCertificateFeedback(key = "", kind = "") {
+          certificateFeedbackKey = key;
+          certificateFeedbackKind = kind;
+          renderCertificate();
+        }
+
+        function renderDeactivation() {
+          deactivateDevice.textContent = t(deactivating ? "deactivatingButton" : "deactivateButton");
+          const disabled = !deviceIsActive || deactivating || certificateLoading || certificateRenewing || certificateDownloading;
+          deactivateDevice.disabled = disabled;
+          deactivateDevice.toggleAttribute("data-busy", deactivating);
+          deactivateDevice.setAttribute("aria-busy", String(deactivating));
+          deactivationFeedback.textContent = deactivationFeedbackKey ? t(deactivationFeedbackKey) : "";
+          deactivationFeedback.dataset.kind = deactivationFeedbackKind;
+        }
+
+        function setDeactivationFeedback(key = "", kind = "") {
+          deactivationFeedbackKey = key;
+          deactivationFeedbackKind = kind;
+          renderDeactivation();
+        }
+
+        async function loadCertificate() {
+          if (!deviceIsActive || certificateLoading || certificateData) return;
+          certificateLoading = true;
+          setCertificateFeedback();
+          try {
+            const response = await fetch("/api/certificate", {
+              cache: "no-store",
+              headers: { Accept: "application/json" },
+            });
+            if (!response.ok) throw new Error("certificate request failed");
+            certificateData = await response.json();
+          } catch (_) {
+            setCertificateFeedback("certificateUnavailable", "error");
+          } finally {
+            certificateLoading = false;
+            renderCertificate();
+          }
+        }
+
+        function renderState(state, displayName = "") {
+          const stateTranslations = {
+            factory_ready: "stateFactoryReady",
+            claiming: "stateClaiming",
+            active: "stateActive",
+          };
+          statusResolved = true;
+          deviceIsActive = state === "active";
+          activeDisplayName = deviceIsActive ? displayName : "";
+          stateKey = stateTranslations[state] || "stateUnknown";
+          workspaceStatus.dataset.state = stateTranslations[state] ? "ready" : "unknown";
+          deviceState.textContent = t(stateKey);
+          setFormDisabled(deviceIsActive || checking || activating);
+          renderPageMode();
+          renderDeactivation();
+          if (deviceIsActive) {
+            void loadCertificate();
+            startServiceStatusChecks();
+          } else {
+            stopServiceStatusChecks();
+            publishedServiceState = "checking";
+            renderServiceStatus();
+            certificateData = null;
+            certificateLoading = false;
+            certificateRenewing = false;
+            certificateDownloading = false;
+            setCertificateFeedback();
+            setDeactivationFeedback();
+          }
+        }
+
+        function readCode() {
+          return codeInputs.map((input) => input.value).join("-");
+        }
+
+        function isCodeComplete() {
+          return codeInputs.every((input) => input.value.length === 5);
+        }
+
+        function currentSubname() {
+          return subnameInput.value.trim().toLowerCase();
+        }
+
+        function inputsAreValidated() {
+          return validatedCode === readCode()
+            && validatedSubname === currentSubname();
+        }
+
+        function primaryActionLabel() {
+          if (activating) return "activatingButton";
+          if (checking) return "checkingButton";
+          return inputsAreValidated() ? "activateButton" : "checkButton";
+        }
+
+        function updatePrimaryAction() {
+          primaryAction.textContent = t(primaryActionLabel());
+          primaryAction.disabled = deviceIsActive
+            || checking
+            || activating
+            || !currentSubname()
+            || !isCodeComplete();
+        }
+
+        function setFormDisabled(disabled) {
+          subnameInput.disabled = disabled;
+          codeInputs.forEach((input) => { input.disabled = disabled; });
+          updatePrimaryAction();
+        }
+
+        function errorDetail(error) {
+          const keys = {
+            activation_code_invalid: "codeInvalid",
+            2501: "codeInvalid",
+            activation_code_not_found: "codeNotFound",
+            2502: "codeNotFound",
+            activation_subname_invalid: "subnameInvalid",
+            2505: "subnameInvalid",
+            activation_name_unavailable: "nameFail",
+            2509: "nameFail",
+            activation_name_locked: "nameLocked",
+            2508: "nameLocked",
+            activation_already_claimed: "alreadyClaimed",
+            2512: "alreadyClaimed",
+            certserver_unavailable: "certserverUnavailable",
+            activation_local_error: "localActivationError",
+            activation_code_locked: "pendingCodeConflict",
+          };
+          if (keys[error.code]) return { key: keys[error.code] };
+          if (error.message) return { text: error.message };
+          return { key: "requestFailed" };
+        }
+
+        function invalidateValidation() {
+          validatedCode = "";
+          validatedSubname = "";
+          assignedDomain = "";
+          updateDomainSuffix();
+          setFormStatus("");
+          updatePrimaryAction();
+        }
+
+        async function checkInputs() {
+          const activationCode = readCode();
+          const subname = currentSubname();
+          checking = true;
+          setFormDisabled(true);
+          primaryAction.toggleAttribute("data-busy", true);
+          setFormStatus("checking");
+          try {
+            const inspection = await post("/api/activation/inspect", {
+              activation_code: activationCode,
+            });
+            assignedDomain = inspection.parent_domain || "";
+            updateDomainSuffix();
+            const payload = await post("/api/activation/names/check", {
+              activation_code: activationCode,
+              subname,
+            });
+            if (payload.available === true) {
+              validatedCode = activationCode;
+              validatedSubname = subname;
+              setFormStatus("canActivate", "success");
+            } else {
+              setFormStatus("nameUnavailable", "error", { key: "nameFail" });
+            }
+          } catch (error) {
+            setFormStatus("", "error", errorDetail(error));
+          } finally {
+            checking = false;
+            primaryAction.toggleAttribute("data-busy", false);
+            setFormDisabled(deviceIsActive);
+          }
+        }
+
+        function normalizeActivationCode(value) {
+          return value.toUpperCase().replace(/[^0-9A-Z]/g, "");
+        }
+
+        function fillCodeInputs(value) {
+          const canonical = normalizeActivationCode(value).slice(0, 25);
+          codeInputs.forEach((input, index) => {
+            input.value = canonical.slice(index * 5, index * 5 + 5);
+          });
+          const firstIncomplete = codeInputs.find((input) => input.value.length < 5);
+          (firstIncomplete || codeInputs.at(-1)).focus();
+          invalidateValidation();
+        }
+
+        async function post(path, payload) {
+          const response = await fetch(path, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new ApiError(String(body?.error?.code || ""), body?.error?.message || t("requestFailed"));
+          }
+          return body;
+        }
+
+        languageToggle.addEventListener("click", () => applyLanguage(language === "zh" ? "en" : "zh"));
+
+        renewCertificate.addEventListener("click", async () => {
+          if (!certificateData || certificateLoading || certificateRenewing || certificateDownloading) return;
+          certificateRenewing = true;
+          setCertificateFeedback();
+          try {
+            await post("/api/certificate/renew", {});
+            certificateData = null;
+            certificateRenewing = false;
+            await loadCertificate();
+            if (certificateData) setCertificateFeedback("certificateRenewed", "success");
+          } catch (_) {
+            setCertificateFeedback("certificateRenewalFailed", "error");
+          } finally {
+            certificateRenewing = false;
+            renderCertificate();
+          }
+        });
+
+        downloadCertificate.addEventListener("click", async () => {
+          if (!certificateData || certificateDownloading) return;
+          certificateDownloading = true;
+          renderCertificate();
+          try {
+            const response = await fetch("/api/certificate/download", { cache: "no-store" });
+            if (!response.ok) throw new Error("certificate download failed");
+            const url = URL.createObjectURL(await response.blob());
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `${activeDisplayName.replace(/~$/, "") || "kundy"}.crt.pem`;
+            document.body.append(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+            setCertificateFeedback("certificateDownloadStarted", "success");
+          } catch (_) {
+            setCertificateFeedback("certificateDownloadFailed", "error");
+          } finally {
+            certificateDownloading = false;
+            renderCertificate();
+          }
+        });
+
+        deactivateDevice.addEventListener("click", async () => {
+          if (!deviceIsActive || deactivating) return;
+          if (!window.confirm(t("deactivateConfirm"))) return;
+          const activationCode = window.prompt(t("deactivateCodePrompt"), "")?.trim() || "";
+          if (!activationCode) {
+            setDeactivationFeedback("deactivationPromptCanceled", "error");
+            return;
+          }
+          deactivating = true;
+          setDeactivationFeedback();
+          try {
+            const result = await post("/api/activation/deactivate", {
+              confirmation: "DEACTIVATE",
+              activation_code: activationCode,
+            });
+            if (result.state === "factory_ready") {
+              await refreshState();
+            } else {
+              setDeactivationFeedback("deactivationPending", "error");
+            }
+          } catch (error) {
+            const key = error?.code === "deactivation_credential_invalid"
+              ? "deactivationCredentialInvalid"
+              : "deactivationFailed";
+            setDeactivationFeedback(key, "error");
+          } finally {
+            deactivating = false;
+            renderDeactivation();
+          }
+        });
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          if (!currentSubname()) {
+            setFormStatus("", "error", { key: "enterName" });
+            subnameInput.focus();
+            return;
+          }
+          if (!isCodeComplete()) {
+            setFormStatus("", "error", { key: "enterCode" });
+            (codeInputs.find((input) => input.value.length < 5) || codeInputs[0]).focus();
+            return;
+          }
+          if (checking || activating) return;
+          if (!inputsAreValidated()) {
+            await checkInputs();
+            return;
+          }
+
+          activating = true;
+          setFormDisabled(true);
+          primaryAction.toggleAttribute("data-busy", true);
+          updatePrimaryAction();
+          setFormStatus("activating");
+          renderState("claiming");
+          try {
+            const payload = await post("/api/activation/claim", {
+              activation_code: readCode(),
+              subname: currentSubname(),
+            });
+            deviceIsActive = true;
+            renderState(payload.state || "active", payload.display_name || "");
+          } catch (error) {
+            refreshState();
+            setFormStatus("", "error", errorDetail(error));
+          } finally {
+            activating = false;
+            primaryAction.toggleAttribute("data-busy", false);
+            setFormDisabled(deviceIsActive);
+          }
+        });
+
+        subnameInput.addEventListener("input", () => {
+          subnameInput.value = subnameInput.value.toLowerCase();
+          invalidateValidation();
+        });
+
+        codeInputs.forEach((input, index) => {
+          input.addEventListener("input", () => {
+            const canonical = normalizeActivationCode(input.value);
+            if (canonical.length > 5) {
+              fillCodeInputs(canonical);
+              return;
+            }
+            input.value = canonical;
+            if (input.value.length === 5) codeInputs[index + 1]?.focus();
+            invalidateValidation();
+          });
+          input.addEventListener("keydown", (event) => {
+            if (event.key === "Backspace" && !input.value && codeInputs[index - 1]) {
+              codeInputs[index - 1].focus();
+            }
+          });
+          input.addEventListener("paste", (event) => {
+            const pasted = event.clipboardData?.getData("text") || "";
+            if (normalizeActivationCode(pasted).length <= 5) return;
+            event.preventDefault();
+            fillCodeInputs(pasted);
+          });
+        });
+
+        function refreshState() {
+          return fetch("/api/status", { headers: { Accept: "application/json" } })
+          .then((response) => {
+            if (!response.ok) throw new Error("status request failed");
+            return response.json();
+          })
+          .then((status) => renderState(status.state, status.display_name || ""))
+          .catch(() => {
+            statusResolved = true;
+            deviceIsActive = false;
+            activeDisplayName = "";
+            stopServiceStatusChecks();
+            publishedServiceState = "unavailable";
+            renderServiceStatus();
+            stateKey = "stateError";
+            workspaceStatus.dataset.state = "error";
+            deviceState.textContent = t(stateKey);
+            renderPageMode();
+          });
+        }
+
+        refreshState();
+
+        fetch("/healthz")
+          .then((response) => { healthKey = response.ok ? "healthOk" : "healthError"; applyLanguage(language); })
+          .catch(() => { healthKey = "healthError"; applyLanguage(language); });
+
+        applyLanguage(language);
+        updatePrimaryAction();
+      })();
+    </script>
+  </body>
+</html>

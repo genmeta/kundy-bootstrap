@@ -1,0 +1,68 @@
+#!/usr/bin/make -f
+
+# dpkg-buildpackage 从临时 debian 源码树调用此文件。
+#
+# dpkg-buildpackage invokes this file from the temporary debian source tree.
+#
+# Cargo 源码通过容器单独只读挂载，避免包元数据进入 Rust 构建输入。
+#
+# The source tree used for Cargo is bind-mounted separately by the container
+# wrapper so the package metadata never becomes part of the Rust build input.
+
+export DH_VERBOSE = 1
+BUILD_PROFILE ?= release
+CARGO_PROFILE_ARGS ?= --release
+CARGO_BUILD_JOBS ?= 1
+SOURCE_ROOT ?= /workspace
+
+%:
+	dh $@
+
+override_dh_auto_build:
+ifdef TRIPLE
+	cd $(SOURCE_ROOT) && \
+		export RUSTFLAGS="$${RUSTFLAGS:-} -L /usr/lib/$(DEB_HOST_MULTIARCH)" && \
+		cargo zigbuild --locked $(CARGO_PROFILE_ARGS) --jobs $(CARGO_BUILD_JOBS) --target $(ZIG_TARGET)
+endif
+
+override_dh_auto_install:
+ifdef TRIPLE
+	mkdir -p debian/kundy/usr/bin
+	cp --sparse=never $(SOURCE_ROOT)/target/$(TRIPLE)/$(BUILD_PROFILE)/kundy debian/kundy/usr/bin/kundy
+	chmod 0755 debian/kundy/usr/bin/kundy
+	install -D -m 0755 $(SOURCE_ROOT)/packaging/host/install-kundy-host.sh debian/kundy/usr/libexec/kundy/setup
+	install -D -m 0644 $(SOURCE_ROOT)/packaging/host/systemd/kundy.service.in debian/kundy/usr/lib/kundy/systemd/kundy.service.in
+	install -D -m 0644 $(SOURCE_ROOT)/packaging/host/systemd/kundy-runtime-config-apply.path debian/kundy/usr/lib/systemd/system/kundy-runtime-config-apply.path
+	install -D -m 0644 $(SOURCE_ROOT)/packaging/host/systemd/kundy-runtime-config-apply.service debian/kundy/usr/lib/systemd/system/kundy-runtime-config-apply.service
+	install -D -m 0644 $(SOURCE_ROOT)/packaging/host/systemd/kundy-pishoo-reload.path debian/kundy/usr/lib/systemd/system/kundy-pishoo-reload.path
+	install -D -m 0644 $(SOURCE_ROOT)/packaging/host/systemd/kundy-pishoo-reload.service debian/kundy/usr/lib/systemd/system/kundy-pishoo-reload.service
+endif
+
+override_dh_auto_test:
+	# 包构建可能针对不同架构，测试在独立的原生 CI 步骤运行。
+	#
+	# The package build may target a different architecture; tests run separately.
+
+override_dh_installsystemd:
+	dh_installsystemd --no-enable --no-start
+
+override_dh_strip:
+	# release profile 已剥离符号，宿主机 strip 不能处理所有交叉编译目标。
+	#
+	# The release profile already strips symbols and host strip cannot process
+	# every cross-compiled target.
+
+override_dh_makeshlibs:
+	# Kundy 不发布共享库。
+	#
+	# Kundy does not ship shared libraries.
+
+override_dh_shlibdeps:
+ifdef TRIPLE
+	dh_shlibdeps -pkundy -l/usr/lib/$(DEB_HOST_MULTIARCH)
+endif
+
+override_dh_auto_clean:
+	# 不运行 cargo clean；产品源码是隔离且可丢弃的临时副本。
+	#
+	# Do not run cargo clean; the product source is disposable and isolated.

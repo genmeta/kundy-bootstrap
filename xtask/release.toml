@@ -1,0 +1,26 @@
+[package.kundy]
+manifest = "Cargo.toml"
+
+[package.kundy.deb]
+revision = "1"
+architecture = "target"
+dockerfile = "packaging/deb/Dockerfile"
+
+[destination.s3]
+bucket = "download"
+endpoint.env = "XTASK_RELEASE_S3_ENDPOINT_URL"
+access_key_id.env = "XTASK_RELEASE_S3_ACCESS_KEY_ID"
+secret_access_key.env = "XTASK_RELEASE_S3_SECRET_ACCESS_KEY"
+
+[destination.s3.deb.stable]
+prefix = "ppa/genmeta"
+suite = "stable"
+
+[destination.s3.deb.preview]
+prefix = "ppa/genmeta"
+suite = "preview"
+
+[destination.s3.deb.signing]
+key.env = "XTASK_RELEASE_APT_SIGNING_KEY"
+passphrase.env = "XTASK_RELEASE_APT_SIGNING_PASSPHRASE"
+fingerprint.env = "XTASK_RELEASE_APT_SIGNING_FINGERPRINT"

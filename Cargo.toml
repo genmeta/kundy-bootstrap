@@ -1,0 +1,33 @@
+[package]
+name = "kundy"
+version = "0.1.0"
+edition = "2024"
+description = "local appliance initialization service"
+license = "Apache-2.0"
+homepage = "https://www.dhttp.net"
+
+[[bin]]
+name = "kundy"
+path = "src/main.rs"
+
+[profile.release]
+strip = "symbols"
+
+[dependencies]
+axum = "0.8"
+dhttp = { version = "0.6.1", features = ["netwatcher"] }
+dirs = "6"
+libc = "0.2"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
+rankey = "0.2.2"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+snafu = "0.9"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread", "sync", "time"] }
+toml = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+uuid = { version = "1", features = ["v4"] }
+x509-parser = "0.18"

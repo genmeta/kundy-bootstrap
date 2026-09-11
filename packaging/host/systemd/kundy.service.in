@@ -1,0 +1,24 @@
+[Unit]
+Description=Kundy local appliance service
+After=network-online.target pishoo.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@KUNDY_USER@
+Environment=HOME=@KUNDY_HOME@
+ExecStart=/usr/bin/kundy serve
+Restart=on-failure
+RestartSec=3s
+UMask=0077
+RuntimeDirectory=kundy
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=-@KUNDY_HOME@/.kundy -@KUNDY_HOME@/.dhttp /run/kundy
+
+[Install]
+WantedBy=multi-user.target

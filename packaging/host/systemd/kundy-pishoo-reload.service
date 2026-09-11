@@ -1,0 +1,18 @@
+[Unit]
+Description=Reload Pishoo for the activated Kundy identity
+After=pishoo.service kundy.service
+Requires=kundy.service pishoo.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=6min
+User=root
+Group=root
+Environment=HOME=/run/kundy
+ExecStart=/usr/bin/kundy host pishoo-reload
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/run/kundy

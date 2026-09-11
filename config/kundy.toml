@@ -1,0 +1,12 @@
+# Build input embedded into the kundy binary. Changing a deployed copy has no effect.
+[dhttp]
+name = "kundy.dhttp.net"
+bind = ["*:3444"]
+
+[certserver]
+base_url = "https://api.genmeta.net"
+
+[ui]
+product_name = "Kundy"
+activation_domain = "kundytest"
+service_path = "/sciflow-console/"

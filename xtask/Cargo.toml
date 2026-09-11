@@ -1,0 +1,9 @@
+[package]
+name = "xtask"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+genmeta-xtask-release = { git = "https://github.com/genmeta/genmeta-xtask-release.git", tag = "v0.2.0-beta.10", version = "0.2.0-beta.10" }
+snafu = "0.9"
